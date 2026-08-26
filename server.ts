@@ -3,15 +3,19 @@ import path from "path";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 
+const PORT = Number(process.env.PORT) || 3000;
+const MODELS = [
+  process.env.GEMINI_MODEL || "gemini-3.6-flash",
+  "gemini-2.5-flash",
+].filter(Boolean) as string[];
+
 async function startServer() {
   const app = express();
-  const PORT = 3000;
-
-  app.use(express.json());
+  app.use(express.json({ limit: "1mb" }));
 
   // Health check endpoint
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", app: "Reinasta Agency Portal" });
+    res.json({ status: "ok", app: "Reinasta Agency Portal", model: MODELS[0] });
   });
 
   // AI Sales Pitch Coach Endpoint (Gemini API Integration)
@@ -67,16 +71,28 @@ Berikan respons terstruktur dalam format Markdown yang mencakup:
         },
       });
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3.6-flash",
-        contents: userPrompt,
-        config: {
-          systemInstruction,
-          temperature: 0.7,
-        },
-      });
+      // Try configured model first, then fall back to a known-stable model
+      let lastError: any = null;
+      for (const model of MODELS) {
+        try {
+          const response = await ai.models.generateContent({
+            model,
+            contents: userPrompt,
+            config: {
+              systemInstruction,
+              temperature: 0.7,
+            },
+          });
+          const text = response.text?.trim() || "";
+          if (!text) throw new Error("Empty response from model");
+          return res.json({ text, isFallback: false, model });
+        } catch (error: any) {
+          lastError = error;
+          console.warn(`Model ${model} failed, trying next:`, error?.message || error);
+        }
+      }
 
-      return res.json({ text: response.text, isFallback: false });
+      throw lastError || new Error("All models failed");
     } catch (error: any) {
       console.error("Error in /api/sales-pitch-coach:", error);
       // Return helpful response if error occurs
@@ -97,7 +113,11 @@ Berikan respons terstruktur dalam format Markdown yang mencakup:
   // Vite middleware for development vs static production serving
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        // Allow sandbox/preview hosts (e.g. *.e2b.app) to reach the app
+        allowedHosts: true as const,
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

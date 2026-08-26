@@ -1,20 +1,72 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Reinasta Agency Portal
 
-# Run and deploy your AI Studio app
+Aplikasi manajemen **Agency Asuransi Jiwa Prudential (Konvensional & Syariah)** — mencakup rekrutmen, training, evaluasi performa penjualan, keuangan agency, meeting online, kontes agensi, broadcast WhatsApp, dan AI Sales Pitch Coach berbasis Gemini.
 
-This contains everything you need to run your app locally.
+## Fitur Utama
 
-View your app in AI Studio: https://ai.studio/apps/2769379b-b884-43f9-801e-ac42ff147796
+| Modul | Deskripsi |
+|---|---|
+| **Dashboard** | Ringkasan API, pipeline closing, rekrutmen, performa tim, dan aktivitas agency |
+| **Closing Progress** | Pipeline kasus dari Prospek → SPAJ → Issued & Paid |
+| **Rekrutmen** | Funnel kandidat agen hingga Ujian AALI & Kode Appointed |
+| **Training Hub** | Modul PruFastStart, Syariah Academy, Product Knowledge, dst. |
+| **Evaluasi Performa** | API per kuartal, persistency rate, level club, catatan coaching, export PDF |
+| **Kontes Agensi** | Buat kontes, kriteria target, leaderboard, countdown deadline |
+| **Keuangan Agency** | Pencatatan income/expense, laporan, export PDF |
+| **Kalkulator Komisi & MDRT** | Simulasi komisi dan target MDRT |
+| **Meeting Online** | Jadwal Morning Briefing, Weekly Unit Meeting, BOP, dll. |
+| **WhatsApp Outreach** | Template pesan dengan variabel dinamis, 1-klik, buka WA langsung |
+| **AI Sales Pitch Coach** | Skrip handling objection & ajakan rekrutmen via **Gemini API** |
+| **Admin Chat & FAQ** | Widget chat persisten dengan FAQ operasional agency |
 
-## Run Locally
+## Cara Menjalankan
 
-**Prerequisites:**  Node.js
+**Prasyarat:** Node.js 18+
 
+```bash
+# 1. Install dependency
+npm install
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+# 2. (Opsional) Set API key Gemini untuk AI Sales Pitch Coach
+cp env.example .env.local
+# isi GEMINI_API_KEY di .env.local
+
+# 3. Jalankan (development, dengan Vite HMR)
+npm run dev
+# Server: http://localhost:3000
+
+# 4. Build & jalankan produksi
+npm run build
+npm start
+```
+
+> Tanpa `GEMINI_API_KEY`, AI Sales Pitch Coach tetap berfungsi menggunakan **skrip cadangan otomatis** (mode fallback) sehingga aplikasi tetap lengkap untuk demo.
+
+## Konfigurasi
+
+| Variabel | Deskripsi |
+|---|---|
+| `GEMINI_API_KEY` | API key Google AI Studio / Gemini (diinjeksi otomatis oleh AI Studio) |
+| `GEMINI_MODEL` | (Opsional) Model Gemini yang dipakai, default `gemini-3.6-flash` |
+| `PORT` | (Opsional) Port server, default `3000` |
+| `APP_URL` | URL hosting aplikasi (untuk link self-referential) |
+
+## Struktur Proyek
+
+```
+├── server.ts                 # Express + Vite middleware + endpoint Gemini API
+├── vite.config.ts            # Konfigurasi Vite + Tailwind
+├── src/
+│   ├── App.tsx               # Routing tab, state global, persistensi localStorage
+│   ├── types.ts              # Tipe data domain
+│   ├── data/mockData.ts      # Data demo awal
+│   ├── utils/pdfGenerator.ts # Export laporan PDF (jsPDF)
+│   └── components/           # Modul fitur aplikasi
+└── public/favicon.svg
+```
+
+**Persistensi data:** Semua perubahan disimpan di `localStorage` (`reinasta_agency_v1`). Gunakan tombol **"Reset Data Demo"** pada dialog login untuk mengembalikan data awal.
+
+## AI Studio
+
+Dibuat dari Google AI Studio: https://ai.studio/apps/2769379b-b884-43f9-801e-ac42ff147796

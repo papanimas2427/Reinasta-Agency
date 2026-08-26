@@ -32,55 +32,62 @@ import { AgentDirectory } from './components/AgentDirectory';
 import { ContestManager } from './components/ContestManager';
 import { AdminChatWidget } from './components/AdminChatWidget';
 
+// Safely load persisted data from localStorage (never crashes on corrupted data)
+function safeLoad<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export default function App() {
   // Persistence key
   const STORAGE_KEY = 'reinasta_agency_v1';
 
   // Load initial state or localStorage
-  const [allUsers, setAllUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_users`);
-    return saved ? JSON.parse(saved) : initialUsers;
-  });
+  const [allUsers, setAllUsers] = useState<User[]>(() =>
+    safeLoad(`${STORAGE_KEY}_users`, initialUsers)
+  );
 
-  const [currentUser, setCurrentUser] = useState<User>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_currentUser`);
-    return saved ? JSON.parse(saved) : allUsers[0] || initialUsers[0];
-  });
+  const [currentUser, setCurrentUser] = useState<User>(() =>
+    safeLoad(`${STORAGE_KEY}_currentUser`, allUsers[0] || initialUsers[0])
+  );
 
-  const [cases, setCases] = useState<ClosingCase[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_cases`);
-    return saved ? JSON.parse(saved) : initialCases;
-  });
+  const [cases, setCases] = useState<ClosingCase[]>(() =>
+    safeLoad(`${STORAGE_KEY}_cases`, initialCases)
+  );
 
-  const [recruits, setRecruits] = useState<Recruit[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_recruits`);
-    return saved ? JSON.parse(saved) : initialRecruits;
-  });
+  const [recruits, setRecruits] = useState<Recruit[]>(() =>
+    safeLoad(`${STORAGE_KEY}_recruits`, initialRecruits)
+  );
 
-  const [modules, setModules] = useState<TrainingModule[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_modules`);
-    return saved ? JSON.parse(saved) : initialModules;
-  });
+  const [modules, setModules] = useState<TrainingModule[]>(() =>
+    safeLoad(`${STORAGE_KEY}_modules`, initialModules)
+  );
 
-  const [performance, setPerformance] = useState<PerformanceRecord[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_performance`);
-    return saved ? JSON.parse(saved) : initialPerformance;
-  });
+  const [performance, setPerformance] = useState<PerformanceRecord[]>(() =>
+    safeLoad(`${STORAGE_KEY}_performance`, initialPerformance)
+  );
 
-  const [meetings, setMeetings] = useState<MeetingSchedule[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_meetings`);
-    return saved ? JSON.parse(saved) : initialMeetings;
-  });
+  const [meetings, setMeetings] = useState<MeetingSchedule[]>(() =>
+    safeLoad(`${STORAGE_KEY}_meetings`, initialMeetings)
+  );
 
-  const [finance, setFinance] = useState<FinanceRecord[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_finance`);
-    return saved ? JSON.parse(saved) : initialFinance;
-  });
+  const [finance, setFinance] = useState<FinanceRecord[]>(() =>
+    safeLoad(`${STORAGE_KEY}_finance`, initialFinance)
+  );
 
-  const [contests, setContests] = useState<Contest[]>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_contests`);
-    return saved ? JSON.parse(saved) : initialContests;
-  });
+  const [contests, setContests] = useState<Contest[]>(() =>
+    safeLoad(`${STORAGE_KEY}_contests`, initialContests)
+  );
+
+  const [templates, setTemplates] = useState<WhatsAppTemplate[]>(() =>
+    safeLoad(`${STORAGE_KEY}_templates`, initialWhatsAppTemplates)
+  );
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_theme`);
@@ -113,7 +120,8 @@ export default function App() {
     localStorage.setItem(`${STORAGE_KEY}_meetings`, JSON.stringify(meetings));
     localStorage.setItem(`${STORAGE_KEY}_finance`, JSON.stringify(finance));
     localStorage.setItem(`${STORAGE_KEY}_contests`, JSON.stringify(contests));
-  }, [allUsers, currentUser, cases, recruits, modules, performance, meetings, finance, contests]);
+    localStorage.setItem(`${STORAGE_KEY}_templates`, JSON.stringify(templates));
+  }, [allUsers, currentUser, cases, recruits, modules, performance, meetings, finance, contests, templates]);
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
@@ -217,6 +225,26 @@ export default function App() {
       receiptNumber: `REC-${Date.now().toString().slice(-6)}`
     };
     setFinance((prev) => [created, ...prev]);
+  };
+
+  const handleSaveTemplate = (template: WhatsAppTemplate) => {
+    setTemplates((prev) => {
+      const exists = prev.some((t) => t.id === template.id);
+      return exists ? prev.map((t) => (t.id === template.id ? template : t)) : [template, ...prev];
+    });
+  };
+
+  const handleDeleteTemplate = (id: string) => {
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  // Reset all persisted demo data back to initial mock data
+  const handleResetData = () => {
+    if (!window.confirm('Reset semua data demo kembali ke data awal? Semua perubahan yang Anda buat akan hilang.')) return;
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(STORAGE_KEY))
+      .forEach((key) => localStorage.removeItem(key));
+    window.location.reload();
   };
 
   return (
@@ -367,9 +395,11 @@ export default function App() {
           {activeTab === 'whatsapp' && (
             <WhatsAppBroadcast
               currentUser={currentUser}
-              templates={initialWhatsAppTemplates}
+              templates={templates}
               cases={cases}
               recruits={recruits}
+              onSaveTemplate={handleSaveTemplate}
+              onDeleteTemplate={handleDeleteTemplate}
             />
           )}
 
@@ -393,6 +423,7 @@ export default function App() {
           currentUser={currentUser}
           onSelectUser={handleSelectUser}
           onClose={() => setShowLoginModal(false)}
+          onResetData={handleResetData}
         />
       )}
 

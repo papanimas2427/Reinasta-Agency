@@ -7,6 +7,7 @@ interface LoginModalProps {
   currentUser: User;
   onSelectUser: (user: User) => void;
   onClose: () => void;
+  onResetData: () => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({
@@ -14,6 +15,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   currentUser,
   onSelectUser,
   onClose,
+  onResetData,
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('owner');
 
@@ -104,12 +106,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           })}
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+        <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col items-center gap-3">
           <button
             onClick={onClose}
             className="text-xs font-bold text-gray-500 hover:text-gray-900"
           >
             Tutup Windows Login
+          </button>
+          <button
+            onClick={onResetData}
+            className="text-[11px] font-semibold text-red-500 hover:text-red-700 hover:underline"
+          >
+            ↺ Reset Data Demo ke Kondisi Awal
           </button>
         </div>
       </div>

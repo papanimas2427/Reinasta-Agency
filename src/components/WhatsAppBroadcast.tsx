@@ -28,17 +28,20 @@ interface WhatsAppBroadcastProps {
   templates: WhatsAppTemplate[];
   cases: ClosingCase[];
   recruits: Recruit[];
+  onSaveTemplate: (template: WhatsAppTemplate) => void;
+  onDeleteTemplate: (id: string) => void;
 }
 
 export const WhatsAppBroadcast: React.FC<WhatsAppBroadcastProps> = ({
   currentUser,
-  templates: initialTemplates,
+  templates,
   cases,
   recruits,
+  onSaveTemplate,
+  onDeleteTemplate,
 }) => {
-  const [templates, setTemplates] = useState<WhatsAppTemplate[]>(initialTemplates);
   const [selectedTemplate, setSelectedTemplate] = useState<WhatsAppTemplate>(
-    initialTemplates[0] || {
+    templates[0] || {
       id: 'wa-ultah-1',
       title: '🎂 Ucapan Selamat Ulang Tahun Nasabah (Spesial Doa & Apresiasi)',
       category: 'Greeting & Ultah',
@@ -82,7 +85,17 @@ export const WhatsAppBroadcast: React.FC<WhatsAppBroadcastProps> = ({
   const waUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(compiledMessage)}`;
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(compiledMessage);
+    try {
+      navigator.clipboard.writeText(compiledMessage);
+    } catch {
+      // Fallback for non-secure contexts
+      const ta = document.createElement('textarea');
+      ta.value = compiledMessage;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -133,7 +146,7 @@ export const WhatsAppBroadcast: React.FC<WhatsAppBroadcastProps> = ({
       content: newTemplateContent.trim()
     };
 
-    setTemplates([newTpl, ...templates]);
+    onSaveTemplate(newTpl);
     setSelectedTemplate(newTpl);
     setIsModalOpen(false);
 
@@ -147,7 +160,7 @@ export const WhatsAppBroadcast: React.FC<WhatsAppBroadcastProps> = ({
     e.stopPropagation();
     if (confirm('Apakah Anda yakin ingin menghapus template pesan ini?')) {
       const updated = templates.filter(t => t.id !== templateId);
-      setTemplates(updated);
+      onDeleteTemplate(templateId);
       if (selectedTemplate.id === templateId && updated.length > 0) {
         setSelectedTemplate(updated[0]);
       }
