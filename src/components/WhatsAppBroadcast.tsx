@@ -387,14 +387,13 @@ export const WhatsAppBroadcast: React.FC<WhatsAppBroadcastProps> = ({
             </h2>
 
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-              <p className="text-[10px] font-bold text-pink-600 uppercase flex items-center space-x-1">
-                <Cake className="w-3 h-3" />
-                <span>Nasabah Berulang Tahun Bulan Ini:</span>
+              <p className="text-[10px] font-bold text-slate-600 uppercase flex items-center space-x-1">
+                <Users className="w-3 h-3" />
+                <span>Kontak Nasabah / Prospek (Klik untuk Auto-Fill):</span>
               </p>
 
-              {cases.map((c, index) => {
-                const mockAge = 30 + index * 4;
-                const isUltah = index % 2 === 0;
+              {cases.map((c) => {
+                const isIssued = c.stage === 'Issued & Paid';
 
                 return (
                   <button
@@ -403,10 +402,9 @@ export const WhatsAppBroadcast: React.FC<WhatsAppBroadcastProps> = ({
                       setRecipientName(c.clientName);
                       setRecipientPhone(c.clientPhone);
                       setProductName(c.productName);
-                      setClientAge(String(mockAge));
 
-                      if (isUltah) {
-                        handle1ClickBirthday(c.clientName, c.clientPhone, String(mockAge), c.productName);
+                      if (isIssued) {
+                        handle1ClickWelcome(c.clientName, c.clientPhone, c.productName);
                       } else {
                         handle1ClickFollowUp(c.clientName, c.clientPhone, c.productName);
                       }
@@ -416,12 +414,14 @@ export const WhatsAppBroadcast: React.FC<WhatsAppBroadcastProps> = ({
                     <div className="truncate">
                       <div className="flex items-center space-x-1.5">
                         <p className="font-black text-slate-900">{c.clientName}</p>
-                        {isUltah && (
-                          <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-pink-100 text-pink-700 rounded-full flex items-center space-x-0.5">
-                            <Cake className="w-2.5 h-2.5" />
-                            <span>Ultah (Usia {mockAge})</span>
-                          </span>
-                        )}
+                        <span
+                          className={`px-1.5 py-0.5 text-[9px] font-extrabold rounded-full flex items-center space-x-0.5 ${
+                            isIssued ? 'bg-emerald-100 text-emerald-700' : 'bg-sky-100 text-sky-700'
+                          }`}
+                        >
+                          {isIssued ? <Cake className="w-2.5 h-2.5" /> : <RefreshCw className="w-2.5 h-2.5" />}
+                          <span>{isIssued ? 'Nasabah Aktif' : c.stage}</span>
+                        </span>
                       </div>
                       <p className="text-[10px] text-gray-500 truncate mt-0.5">
                         {c.productName} • {c.clientPhone}
