@@ -122,9 +122,29 @@ export const AdminChatWidget: React.FC<AdminChatWidgetProps> = ({
 }) => {
   const isAdmin = currentUser.role === 'owner' || currentUser.role === 'unit_manager';
 
+  // Persist chat history so agent/admin conversations survive page reloads.
+  const CHAT_STORAGE_KEY = 'reinasta_agency_v1_chat_messages';
+
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'faq' | 'threads'>('chat');
-  const [messages, setMessages] = useState<ChatMessage[]>(initialChatMessages);
+  const [messages, setMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (!saved) return initialChatMessages;
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : initialChatMessages;
+    } catch {
+      return initialChatMessages;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(messages));
+    } catch {
+      // storage full / unavailable — ignore, chat stays in memory
+    }
+  }, [messages]);
   const [inputMessage, setInputMessage] = useState<string>('');
   const [faqSearch, setFaqSearch] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');

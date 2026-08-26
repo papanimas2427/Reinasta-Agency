@@ -38,9 +38,27 @@ npm run dev
 # 4. Build & jalankan produksi
 npm run build
 npm start
+
+# 5. (Opsional) Jalankan pengujian otomatis (smoke test seluruh modul)
+npm test
 ```
 
 > Tanpa `GEMINI_API_KEY`, AI Sales Pitch Coach tetap berfungsi menggunakan **skrip cadangan otomatis** (mode fallback) sehingga aplikasi tetap lengkap untuk demo.
+
+## Pengujian (Quality Assurance)
+
+Suite tes integrasi (Vitest + jsdom + Testing Library) me-mount aplikasi penuh dan menguji:
+
+- Render **12 modul utama** (Dashboard, Kontes, Kalkulator, AI Coach, Rekrutmen, Data Agent, Training, Evaluasi, Closing, Keuangan, Meeting, WhatsApp, Aturan Prudential)
+- **Kontrol akses role** — Agent terkunci dari Keuangan/Meeting/Broadcast
+- Alur **AI Sales Pitch Coach** (dengan stub API offline)
+- Pembuatan template WA tersimpan ke `localStorage`
+- **Chat Admin** (kirim pesan + auto-reply) dan **dark mode**
+
+```bash
+npm test        # jalankan sekali
+npm run test:watch
+```
 
 ## Konfigurasi
 

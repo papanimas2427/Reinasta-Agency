@@ -221,7 +221,13 @@ export const ContestManager: React.FC<ContestManagerProps> = ({
       },
       startDate: formStartDate,
       endDate: formEndDate,
-      status: 'Aktif',
+      // Derive status from dates so editing a finished contest doesn't revive it.
+      status:
+        formEndDate < new Date().toISOString().split('T')[0]
+          ? 'Selesai'
+          : formStartDate > new Date().toISOString().split('T')[0]
+            ? 'Mendatang'
+            : 'Aktif',
       createdBy: `${currentUser.name} (${currentUser.role})`,
       createdAt: editingContest ? editingContest.createdAt : new Date().toISOString().split('T')[0],
       bannerColor: formBannerColor
