@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, FinanceRecord, FinanceType } from '../types';
 import { Wallet, Printer, Plus, Lock, TrendingUp, TrendingDown, DollarSign, ShieldAlert, Filter, Search, Calendar, Eye, Download, X, FileText, CheckCircle2 } from 'lucide-react';
-import { generateFinancePDF } from '../utils/pdfGenerator';
+import { exportFinancePDF } from '../utils/pdfExport';
 
 interface AgencyFinanceProps {
   currentUser: User;
@@ -370,14 +370,14 @@ export const AgencyFinance: React.FC<AgencyFinanceProps> = ({
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => generateFinancePDF(filteredRecords, totalIncome, totalExpense, currentUser)}
+                  onClick={() => void exportFinancePDF(filteredRecords, totalIncome, totalExpense, currentUser)}
                   className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-md shadow-red-200 transition-colors"
                 >
                   <Download className="w-4 h-4" /> Export Ke PDF
                 </button>
                 <button
                   onClick={() => {
-                    generateFinancePDF(filteredRecords, totalIncome, totalExpense, currentUser);
+                    void exportFinancePDF(filteredRecords, totalIncome, totalExpense, currentUser);
                   }}
                   className="px-3.5 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
                 >
@@ -523,7 +523,7 @@ export const AgencyFinance: React.FC<AgencyFinanceProps> = ({
                 Tutup Pratinjau
               </button>
               <button
-                onClick={() => generateFinancePDF(filteredRecords, totalIncome, totalExpense, currentUser)}
+                onClick={() => void exportFinancePDF(filteredRecords, totalIncome, totalExpense, currentUser)}
                 className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-xl shadow-md shadow-red-200 cursor-pointer flex items-center gap-1.5"
               >
                 <Download className="w-4 h-4" /> Download File PDF

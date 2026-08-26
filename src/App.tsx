@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { User, ClosingCase, Recruit, TrainingModule, PerformanceRecord, MeetingSchedule, FinanceRecord, WhatsAppTemplate, Contest, CaseStage, RecruitStage } from './types';
 import {
   initialUsers,
@@ -16,21 +16,33 @@ import {
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { MobileNav } from './components/MobileNav';
-import { Dashboard } from './components/Dashboard';
-import { Recruitment } from './components/Recruitment';
-import { TrainingHub } from './components/TrainingHub';
-import { PerformanceEvaluation } from './components/PerformanceEvaluation';
-import { ClosingProgress } from './components/ClosingProgress';
-import { AgencyFinance } from './components/AgencyFinance';
-import { OnlineMeeting } from './components/OnlineMeeting';
-import { WhatsAppBroadcast } from './components/WhatsAppBroadcast';
-import { PrudentialRules } from './components/PrudentialRules';
 import { LoginModal } from './components/LoginModal';
-import { CommissionCalculatorMDRT } from './components/CommissionCalculatorMDRT';
-import { AISalesPitchCoach } from './components/AISalesPitchCoach';
-import { AgentDirectory } from './components/AgentDirectory';
-import { ContestManager } from './components/ContestManager';
 import { AdminChatWidget } from './components/AdminChatWidget';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Heavy feature modules are lazy-loaded on demand (code splitting).
+// Faster first paint + smaller initial bundle for production.
+const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
+const Recruitment = lazy(() => import('./components/Recruitment').then((m) => ({ default: m.Recruitment })));
+const TrainingHub = lazy(() => import('./components/TrainingHub').then((m) => ({ default: m.TrainingHub })));
+const PerformanceEvaluation = lazy(() => import('./components/PerformanceEvaluation').then((m) => ({ default: m.PerformanceEvaluation })));
+const ClosingProgress = lazy(() => import('./components/ClosingProgress').then((m) => ({ default: m.ClosingProgress })));
+const AgencyFinance = lazy(() => import('./components/AgencyFinance').then((m) => ({ default: m.AgencyFinance })));
+const OnlineMeeting = lazy(() => import('./components/OnlineMeeting').then((m) => ({ default: m.OnlineMeeting })));
+const WhatsAppBroadcast = lazy(() => import('./components/WhatsAppBroadcast').then((m) => ({ default: m.WhatsAppBroadcast })));
+const PrudentialRules = lazy(() => import('./components/PrudentialRules').then((m) => ({ default: m.PrudentialRules })));
+const CommissionCalculatorMDRT = lazy(() => import('./components/CommissionCalculatorMDRT').then((m) => ({ default: m.CommissionCalculatorMDRT })));
+const AISalesPitchCoach = lazy(() => import('./components/AISalesPitchCoach').then((m) => ({ default: m.AISalesPitchCoach })));
+const AgentDirectory = lazy(() => import('./components/AgentDirectory').then((m) => ({ default: m.AgentDirectory })));
+const ContestManager = lazy(() => import('./components/ContestManager').then((m) => ({ default: m.ContestManager })));
+
+// Simple loading placeholder while a module chunk is fetched
+const ModuleLoader = () => (
+  <div className="p-12 flex flex-col items-center justify-center text-slate-400 space-y-3">
+    <div className="w-10 h-10 rounded-full border-4 border-slate-200 border-t-[#ED1C24] animate-spin" />
+    <p className="text-xs font-semibold">Memuat modul...</p>
+  </div>
+);
 
 // Safely load persisted data from localStorage (never crashes on corrupted data)
 function safeLoad<T>(key: string, fallback: T): T {
@@ -247,7 +259,69 @@ export default function App() {
     window.location.reload();
   };
 
+  // Export all local data as a downloadable JSON backup
+  const handleExportData = () => {
+    try {
+      const data: Record<string, unknown> = {};
+      Object.keys(localStorage)
+        .filter((key) => key.startsWith(STORAGE_KEY))
+        .forEach((key) => {
+          const raw = localStorage.getItem(key);
+          if (!raw) return;
+          try { data[key] = JSON.parse(raw); } catch { data[key] = raw; }
+        });
+
+      const backup = {
+        app: 'reinasta-agency',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        data,
+      };
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `reinasta-agency-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export backup failed:', err);
+      window.alert('Gagal membuat file backup. Coba lagi.');
+    }
+  };
+
+  // Restore from a previously exported JSON backup
+  const handleImportData = (backup: { app?: string; version?: number; data?: Record<string, unknown> }) => {
+    try {
+      const data = backup?.data;
+      if (!backup?.app || !data || typeof data !== 'object') {
+        window.alert('File backup tidak valid. Pastikan file berasal dari Reinasta Agency Portal.');
+        return;
+      }
+      let count = 0;
+      Object.entries(data).forEach(([key, value]) => {
+        if (key.startsWith(STORAGE_KEY) && value !== undefined && value !== null) {
+          localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+          count += 1;
+        }
+      });
+      if (count === 0) {
+        window.alert('Backup tidak berisi data Reinasta Agency yang dikenali.');
+        return;
+      }
+      window.alert(`Backup dipulihkan (${count} segmen data). Aplikasi akan dimuat ulang...`);
+      window.location.reload();
+    } catch (err) {
+      console.error('Import backup failed:', err);
+      window.alert('Gagal membaca file backup. Periksa kembali file Anda.');
+    }
+  };
+
   return (
+    <ErrorBoundary>
     <div className="min-h-screen bg-[#F8F9FA] dark:bg-slate-950 text-[#2D3436] dark:text-slate-100 font-sans flex flex-col antialiased transition-colors">
       {/* Top Header */}
       <Header
@@ -273,6 +347,7 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8 min-w-0">
+          <Suspense fallback={<ModuleLoader />}>
           {activeTab === 'dashboard' && (
             <Dashboard
               currentUser={currentUser}
@@ -406,6 +481,7 @@ export default function App() {
           {activeTab === 'prudential_rules' && (
             <PrudentialRules currentUser={currentUser} />
           )}
+          </Suspense>
         </main>
       </div>
 
@@ -424,6 +500,8 @@ export default function App() {
           onSelectUser={handleSelectUser}
           onClose={() => setShowLoginModal(false)}
           onResetData={handleResetData}
+          onExportData={handleExportData}
+          onImportData={handleImportData}
         />
       )}
 
@@ -433,6 +511,7 @@ export default function App() {
         allUsers={allUsers}
       />
     </div>
+    </ErrorBoundary>
   );
 
 }

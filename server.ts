@@ -1,7 +1,13 @@
 import express from "express";
 import path from "path";
+import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 import { createServer as createViteServer } from "vite";
+
+// Load .env.local first (dev secrets), then .env — dotenv never overrides
+// already-set vars, so runtime-injected env (AI Studio) takes precedence.
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local"), quiet: true });
+dotenv.config({ quiet: true });
 
 const PORT = Number(process.env.PORT) || 3000;
 const MODELS = [
@@ -9,20 +15,68 @@ const MODELS = [
   "gemini-2.5-flash",
 ].filter(Boolean) as string[];
 
+// ---- Simple in-memory rate limiter (anti-abuse for the AI endpoint) ----
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 30;
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function rateLimit(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const ip = req.ip || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const bucket = rateBuckets.get(ip);
+
+  if (!bucket || bucket.resetAt < now) {
+    rateBuckets.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return next();
+  }
+
+  bucket.count += 1;
+  if (bucket.count > RATE_LIMIT_MAX_REQUESTS) {
+    return res.status(429).json({
+      error: "Terlalu banyak permintaan. Silakan coba lagi dalam beberapa menit.",
+    });
+  }
+  next();
+}
+
+// ---- Input guard for the Gemini endpoint ----
+const MAX_TEXT = 3000;
+function cleanField(value: unknown, max = MAX_TEXT): string {
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
+}
+
 async function startServer() {
   const app = express();
-  app.use(express.json({ limit: "1mb" }));
+  app.set("trust proxy", true);
+  app.use(express.json({ limit: "256kb" }));
+
+  // Basic security headers (no X-Frame-Options/CSP frame-ancestors on purpose:
+  // the app is embedded as an iframe by AI Studio & Arena live preview).
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("X-Powered-By", "Reinasta Agency");
+    next();
+  });
 
   // Health check endpoint
   app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", app: "Reinasta Agency Portal", model: MODELS[0] });
+    res.json({
+      status: "ok",
+      app: "Reinasta Agency Portal",
+      model: MODELS[0],
+      version: "1.0.0",
+      uptimeSeconds: Math.floor(process.uptime()),
+    });
   });
 
   // AI Sales Pitch Coach Endpoint (Gemini API Integration)
-  app.post("/api/sales-pitch-coach", async (req, res) => {
+  app.post("/api/sales-pitch-coach", rateLimit, async (req, res) => {
     try {
       const { type, objection, product, clientProfile, customPrompt, recruitmentScenario } = req.body;
 
+      const validTypes = ["objection", "recruitment", "general"];
+      const safeType = validTypes.includes(type) ? type : "general";
       const apiKey = process.env.GEMINI_API_KEY;
 
       let systemInstruction = `Anda adalah Lead Sales Coach & Agency Director berpengalaman 15+ tahun di Prudential Indonesia & Prudential Syariah.
@@ -41,24 +95,28 @@ Berikan respons terstruktur dalam format Markdown yang mencakup:
 - **Konteks Produk & Syariah**: Mengapa solusi Prudential/PRU Syariah sangat tepat untuk situasi ini.
 - **Pertanyaan Penutup (Closing Hook)**: Pertanyaan untuk memicu komitmen nasabah.`;
 
-      let userPrompt = "";
+      const objectionText = cleanField(objection || customPrompt);
+      const recruitmentText = cleanField(recruitmentScenario || customPrompt);
+      const productText = cleanField(product, 300) || "PRUCinta Syariah / PRU Solusi Sehat Syariah";
+      const profileText = cleanField(clientProfile, 500) || "Kepala Keluarga Usia 35 Tahun";
 
-      if (type === "objection") {
+      let userPrompt = "";
+      if (safeType === "objection") {
         userPrompt = `Mohon berikan skrip penanganan keberatan (handling objection) untuk situasi berikut:
-- Keberatan Nasabah: "${objection || customPrompt}"
-- Produk yang Ditawarkan: ${product || "PRUCinta Syariah / PRU Solusi Sehat Syariah"}
-- Profil Nasabah: ${clientProfile || "Kepala Keluarga Usia 35 Tahun"}`;
-      } else if (type === "recruitment") {
+- Keberatan Nasabah: "${objectionText || "Mau pikir-pikir dulu"}"
+- Produk yang Ditawarkan: ${productText}
+- Profil Nasabah: ${profileText}`;
+      } else if (safeType === "recruitment") {
         userPrompt = `Mohon berikan skrip ajakan rekrutmen agen baru Prudential untuk skenario berikut:
-- Skenario / Target Kandidat: "${recruitmentScenario || customPrompt}"
-- Profil Kandidat: ${clientProfile || "Profesional / Karyawan Mendedikasikan Karir Baru"}`;
+- Skenario / Target Kandidat: "${recruitmentText || "Profesional yang mencari side income"}"
+- Profil Kandidat: ${profileText}`;
       } else {
-        userPrompt = customPrompt || "Berikan tips sukses closing polis Prudential Syariah minggu ini.";
+        userPrompt = cleanField(customPrompt, MAX_TEXT) || "Berikan tips sukses closing polis Prudential Syariah minggu ini.";
       }
 
       if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
         // Fallback simulated intelligent response if API key is not configured in local environment
-        const fallbackResponse = getFallbackPitchCoach(type, objection || customPrompt, recruitmentScenario, product);
+        const fallbackResponse = getFallbackPitchCoach(safeType, objectionText || recruitmentText, recruitmentText, productText);
         return res.json({ text: fallbackResponse, isFallback: true });
       }
 
@@ -123,14 +181,14 @@ Berikan respons terstruktur dalam format Markdown yang mencakup:
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, { maxAge: "1h", index: "index.html" }));
     app.get("*", (_req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Server running on http://0.0.0.0:${PORT} (${process.env.NODE_ENV || "development"})`);
   });
 }
 

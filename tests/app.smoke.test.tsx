@@ -44,8 +44,9 @@ function clickSidebarTab(label: string) {
 describe('Reinasta Agency Portal — smoke test seluruh modul', () => {
   it('memuat Dashboard tanpa error runtime', async () => {
     render(<App />);
+    // Lazy-loaded module: wait for the chunk to resolve
     expect(
-      screen.getByRole('heading', { level: 1, name: /selamat datang/i })
+      await screen.findByRole('heading', { level: 1, name: /selamat datang/i })
     ).toBeInTheDocument();
     expect(runtimeErrors).toHaveLength(0);
   });
@@ -163,6 +164,21 @@ describe('Reinasta Agency Portal — smoke test seluruh modul', () => {
     expect(
       await screen.findByText(/terima kasih/i, undefined, { timeout: 4500 })
     ).toBeInTheDocument();
+    expect(runtimeErrors).toHaveLength(0);
+  });
+
+  it('login modal: manajemen data (backup/restore/reset) tersedia', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole('button', { name: /ganti user \/ login/i }));
+
+    expect(screen.getByRole('button', { name: /backup data/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /pulihkan dari backup/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reset data demo/i })).toBeInTheDocument();
+
+    const createSpy = vi.spyOn(URL, 'createObjectURL');
+    await user.click(screen.getByRole('button', { name: /backup data/i }));
+    expect(createSpy).toHaveBeenCalled();
     expect(runtimeErrors).toHaveLength(0);
   });
 

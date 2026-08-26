@@ -1,7 +1,7 @@
 import React from 'react';
 import { User, ClosingCase, Recruit, PerformanceRecord, MeetingSchedule, TrainingModule, FinanceRecord, Contest } from '../types';
 import { MonthlyTeamSalesChart } from './MonthlyTeamSalesChart';
-import { generateDashboardSummaryPDF } from '../utils/pdfGenerator';
+import { exportDashboardPDF } from '../utils/pdfExport';
 import {
   ResponsiveContainer,
   LineChart,
@@ -462,7 +462,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 <span>Pantau Kontes Agensi →</span>
               </button>
               <button
-                onClick={() => generateDashboardSummaryPDF(currentUser, cases, recruits, performance, meetings, finance, modules, contests, allUsers)}
+                onClick={() => void exportDashboardPDF(currentUser, cases, recruits, performance, meetings, finance, modules, contests, allUsers)}
                 className="px-3.5 py-1 bg-slate-950 hover:bg-black text-amber-300 border border-amber-400/50 font-extrabold rounded-sm shadow-sm transition-all cursor-pointer flex items-center space-x-1.5"
               >
                 <Download className="w-3.5 h-3.5 text-amber-400" />
