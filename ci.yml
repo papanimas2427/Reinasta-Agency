@@ -1,4 +1,4 @@
-name: CI
+.github/workflows/ci.yml
 on:
   push:
     branches: ['**']
