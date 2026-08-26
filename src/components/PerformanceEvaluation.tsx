@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { User, PerformanceRecord, AgentLevel } from '../types';
 import { BarChart3, Award, Calendar, Download, Filter, MessageSquare, Save, Sparkles, TrendingUp, Search, Users, UserCheck, GraduationCap, BookOpen, ShieldCheck } from 'lucide-react';
-import { generatePerformancePDF } from '../utils/pdfGenerator';
+import { exportPerformancePDF } from '../utils/pdfExport';
 import { MonthlyTeamSalesChart } from './MonthlyTeamSalesChart';
 
 interface PerformanceEvaluationProps {
@@ -187,7 +187,7 @@ export const PerformanceEvaluation: React.FC<PerformanceEvaluationProps> = ({
         </div>
 
         <button
-          onClick={() => generatePerformancePDF(filteredRecords, periodLabel, currentUser)}
+          onClick={() => void exportPerformancePDF(filteredRecords, periodLabel, currentUser)}
           className="inline-flex items-center justify-center px-4 py-2.5 bg-gray-900 dark:bg-slate-800 hover:bg-black dark:hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer border border-transparent dark:border-slate-700"
         >
           <Download className="w-4 h-4 mr-1.5" /> Export PDF Laporan

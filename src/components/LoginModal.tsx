@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { User, UserRole } from '../types';
-import { Shield, Lock, ArrowRight, UserCheck, CheckCircle2 } from 'lucide-react';
+import { Shield, Lock, ArrowRight, UserCheck, CheckCircle2, Download, Upload, HardDriveDownload } from 'lucide-react';
 
 interface LoginModalProps {
   allUsers: User[];
   currentUser: User;
   onSelectUser: (user: User) => void;
   onClose: () => void;
+  onResetData: () => void;
+  onExportData: () => void;
+  onImportData: (backup: { app?: string; version?: number; data?: Record<string, unknown> }) => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({
@@ -14,8 +17,28 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   currentUser,
   onSelectUser,
   onClose,
+  onResetData,
+  onExportData,
+  onImportData,
 }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole>('owner');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result));
+        onImportData(parsed);
+      } catch {
+        window.alert('File backup tidak valid (bukan JSON).');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   const filteredUsers = allUsers.filter((u) => u.role === selectedRole);
 
@@ -104,13 +127,49 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           })}
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-100 text-center">
-          <button
-            onClick={onClose}
-            className="text-xs font-bold text-gray-500 hover:text-gray-900"
-          >
-            Tutup Windows Login
-          </button>
+        {/* Data Management: Backup / Restore / Reset */}
+        <div className="mt-6 pt-4 border-t border-gray-100 space-y-3">
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5">
+            <HardDriveDownload className="w-3.5 h-3.5 text-gray-400" />
+            Manajemen Data
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              onClick={onExportData}
+              className="px-3 py-1.5 text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Backup Data (JSON)
+            </button>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="px-3 py-1.5 text-[11px] font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 rounded-lg flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Pulihkan dari Backup
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={handleFileSelected}
+            />
+          </div>
+          <div className="pt-3 border-t border-gray-100 flex flex-col items-center gap-2">
+            <button
+              onClick={onClose}
+              className="text-xs font-bold text-gray-500 hover:text-gray-900"
+            >
+              Tutup Windows Login
+            </button>
+            <button
+              onClick={onResetData}
+              className="text-[11px] font-semibold text-red-500 hover:text-red-700 hover:underline"
+            >
+              ↺ Reset Data Demo ke Kondisi Awal
+            </button>
+          </div>
         </div>
       </div>
     </div>

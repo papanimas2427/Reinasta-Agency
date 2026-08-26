@@ -41,6 +41,8 @@ export const AISalesPitchCoach: React.FC<AISalesPitchCoachProps> = ({ currentUse
   const [responseMarkdown, setResponseMarkdown] = useState<string | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isFallback, setIsFallback] = useState<boolean>(false);
+  const [usedModel, setUsedModel] = useState<string | null>(null);
 
   // Common Objections Presets
   const objectionPresets = [
@@ -64,12 +66,15 @@ export const AISalesPitchCoach: React.FC<AISalesPitchCoachProps> = ({ currentUse
     setLoading(true);
     setErrorMsg(null);
     setResponseMarkdown(null);
+    setIsFallback(false);
+    setUsedModel(null);
 
     const payload = {
       type: activeTab,
       objection: selectedObjection === 'Lainnya' ? customObjection : selectedObjection,
       product: productFocus,
-      clientProfile,
+      // Each tab has its own "profile" input; send the one that is visible.
+      clientProfile: activeTab === 'recruitment' ? candidateProfile : clientProfile,
       recruitmentScenario: recruitmentScenario === 'Lainnya' ? customRecruitment : recruitmentScenario,
       customPrompt: activeTab === 'objection' ? customObjection : customRecruitment
     };
@@ -84,6 +89,8 @@ export const AISalesPitchCoach: React.FC<AISalesPitchCoachProps> = ({ currentUse
       const data = await res.json();
       if (data.text) {
         setResponseMarkdown(data.text);
+        setIsFallback(Boolean(data.isFallback));
+        setUsedModel(data.model || null);
       } else {
         setErrorMsg('Gagal menerima respons dari server.');
       }
@@ -97,9 +104,84 @@ export const AISalesPitchCoach: React.FC<AISalesPitchCoachProps> = ({ currentUse
 
   const handleCopy = () => {
     if (!responseMarkdown) return;
-    navigator.clipboard.writeText(responseMarkdown);
+    try {
+      navigator.clipboard.writeText(responseMarkdown);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = responseMarkdown;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  // Lightweight Markdown renderer tuned for the server's structured response
+  const stripMd = (s: string) => s.replace(/\*\*/g, '').replace(/\*/g, '').replace(/^>\s?/gm, '').trim();
+
+  const renderMarkdown = (md: string) => {
+    return md.split('\n\n').map((block, i) => {
+      const trimmed = block.trim();
+      if (!trimmed) return null;
+
+      // Heading: "### Title"
+      if (trimmed.startsWith('###')) {
+        return (
+          <h3 key={i} className="text-base font-bold text-slate-900 border-b border-slate-200 pb-1 mt-2">
+            {stripMd(trimmed.replace(/^#+\s*/, ''))}
+          </h3>
+        );
+      }
+
+      // Blockquote: "> ..." possibly with "> - bullet" lines
+      if (trimmed.startsWith('>')) {
+        const lines = trimmed.split('\n').map((l) => l.replace(/^\s*>\s?/, ''));
+        return (
+          <blockquote key={i} className="p-3 bg-white border-l-4 border-[#ED1C24] rounded-r text-slate-800 text-sm font-medium my-2 shadow-xs space-y-1.5">
+            {lines.map((line, j) => {
+              const isBullet = line.trim().startsWith('- ');
+              const text = stripMd(line.trim().replace(/^- /, ''));
+              return isBullet ? (
+                <div key={j} className="flex items-start gap-2 text-slate-800">
+                  <span className="text-[#ED1C24] mt-0.5">•</span>
+                  <span className="italic">{text}</span>
+                </div>
+              ) : (
+                <p key={j} className="italic">{text}</p>
+              );
+            })}
+          </blockquote>
+        );
+      }
+
+      // Bold section label: "**1. Poin Empati ...**"
+      if (/^\*\*.*\*\*$/.test(trimmed)) {
+        return (
+          <p key={i} className="font-bold text-slate-900 text-sm mt-3">
+            {stripMd(trimmed)}
+          </p>
+        );
+      }
+
+      // Bullet list
+      if (/^[-*] /.test(trimmed)) {
+        return (
+          <ul key={i} className="list-disc pl-5 space-y-1 text-slate-700 text-sm">
+            {trimmed.split('\n').map((line, j) => (
+              <li key={j} className="leading-relaxed">{stripMd(line.replace(/^[-*]\s+/, ''))}</li>
+            ))}
+          </ul>
+        );
+      }
+
+      return (
+        <p key={i} className="text-slate-700 text-sm leading-relaxed">
+          {stripMd(trimmed)}
+        </p>
+      );
+    });
   };
 
   return (
@@ -123,10 +205,17 @@ export const AISalesPitchCoach: React.FC<AISalesPitchCoachProps> = ({ currentUse
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Gemini 3.6 Flash Active</span>
-          </div>
+          {isFallback ? (
+            <div className="px-3 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+              <span>Mode Cadangan (API Key Gemini belum dikonfigurasi)</span>
+            </div>
+          ) : (
+            <div className="px-3 py-1.5 rounded-md bg-emerald-50 border border-emerald-200 text-xs font-semibold text-emerald-800 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span>{usedModel ? `${usedModel} Aktif` : 'Gemini AI Aktif'}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -392,34 +481,7 @@ export const AISalesPitchCoach: React.FC<AISalesPitchCoachProps> = ({ currentUse
                 </div>
               ) : responseMarkdown ? (
                 <div className="prose prose-slate max-w-none text-sm leading-relaxed space-y-4 p-4 rounded bg-slate-50/80 border border-slate-200/80">
-                  {responseMarkdown.split('\n\n').map((paragraph, index) => {
-                    if (paragraph.startsWith('###')) {
-                      return (
-                        <h3 key={index} className="text-base font-bold text-slate-900 border-b border-slate-200 pb-1 mt-2">
-                          {paragraph.replace('###', '').trim()}
-                        </h3>
-                      );
-                    }
-                    if (paragraph.startsWith('**') && paragraph.includes(':**')) {
-                      return (
-                        <p key={index} className="font-semibold text-slate-900 text-sm">
-                          {paragraph}
-                        </p>
-                      );
-                    }
-                    if (paragraph.startsWith('>')) {
-                      return (
-                        <blockquote key={index} className="p-3 bg-white border-l-4 border-[#ED1C24] rounded-r text-slate-800 text-sm italic font-medium my-2 shadow-xs">
-                          {paragraph.replace('>', '').trim()}
-                        </blockquote>
-                      );
-                    }
-                    return (
-                      <p key={index} className="text-slate-700 text-sm">
-                        {paragraph}
-                      </p>
-                    );
-                  })}
+                  {renderMarkdown(responseMarkdown)}
                 </div>
               ) : (
                 <div className="h-64 flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-200 rounded-lg text-slate-400 space-y-3">

@@ -12,11 +12,38 @@ export default defineConfig(() => {
       },
     },
     server: {
+      // Allow any host (AI Studio / Arena live previews use random sandbox hosts).
+      allowedHosts: true as const,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify - file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
+    },
+    build: {
+      chunkSizeWarningLimit: 900,
+      rollupOptions: {
+        output: {
+          manualChunks(id: string) {
+            // Vendor splitting: stable, cacheable chunks per library family.
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
+              return 'react-vendor';
+            }
+            if (id.includes('node_modules/recharts/') || id.includes('node_modules/d3-') || id.includes('node_modules/victory-')) {
+              return 'charts';
+            }
+            if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas') || id.includes('node_modules/canvg') || id.includes('node_modules/dompurify')) {
+              return 'pdf';
+            }
+            if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) {
+              return 'motion';
+            }
+            if (id.includes('node_modules/lucide-react/')) {
+              return 'icons';
+            }
+          },
+        },
+      },
     },
   };
 });

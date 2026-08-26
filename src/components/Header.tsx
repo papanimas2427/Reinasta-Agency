@@ -1,6 +1,6 @@
 import React from 'react';
 import { User, UserRole } from '../types';
-import { Shield, UserCheck, ChevronDown, Bell, Lock, Smartphone, Menu, PanelLeftClose, PanelLeftOpen, Sun, Moon } from 'lucide-react';
+import { Shield, UserCheck, ChevronDown, Bell, Lock, Smartphone, Menu, PanelLeftClose, PanelLeftOpen, Sun, Moon, LogIn } from 'lucide-react';
 
 interface HeaderProps {
   currentUser: User;
@@ -92,6 +92,15 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span className="w-2 h-2 rounded-full bg-white animate-pulse"></span>
               <span>WA Broadcast</span>
+            </button>
+
+            <button
+              onClick={onOpenMobileMenu}
+              title="Ganti User / Login (Simulasi Role)"
+              aria-label="Ganti User / Login"
+              className="p-2 rounded-lg bg-gray-50 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-slate-700 transition-all cursor-pointer flex items-center justify-center shrink-0"
+            >
+              <LogIn className="w-4 h-4 text-[#2D8CFF]" />
             </button>
 
             <button

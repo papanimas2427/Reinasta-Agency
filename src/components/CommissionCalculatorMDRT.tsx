@@ -73,8 +73,8 @@ export const CommissionCalculatorMDRT: React.FC<CommissionCalculatorMDRTProps> =
   const remainingForStarClub = Math.max(0, MDRT_TARGETS.starClub - customCurrentApe);
   const starClubProgressPercent = Math.min(100, Math.round((customCurrentApe / MDRT_TARGETS.starClub) * 100));
 
-  // Time remaining in 2026 (e.g. assume 5 months remaining in Q3/Q4)
-  const remainingMonths = 5;
+  // Time remaining in 2026, derived from today's date (full months until Dec 31)
+  const remainingMonths = Math.max(1, 12 - new Date().getMonth());
   const monthlyRequiredApe = remainingForMdrt > 0 ? Math.ceil(remainingForMdrt / remainingMonths) : 0;
   const weeklyRequiredApe = Math.ceil(monthlyRequiredApe / 4);
   const estCasesNeeded = Math.ceil(remainingForMdrt / 25000000); // Assuming avg case premium 25 Juta/year
