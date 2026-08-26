@@ -1,0 +1,6 @@
+{
+  "name": "Reinasta Agency",
+  "description": "Aplikasi Manajemen Agency Asuransi Jiwa Prudential (Konvensional & Syariah) untuk Rekrutmen, Training, Evaluasi, Performa Penjualan, Keuangan Agency, Meeting Online, dan Broadcast WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
